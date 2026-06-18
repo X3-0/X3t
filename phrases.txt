@@ -1,6 +1,4 @@
-# CAT Tunnel - Key Phrases
-# Две фразы = два ключа для dual-key resync
-# Минимум 16 символов каждая
-
+cat << 'EOF' > phrases.txt
 chaos_alpha_2024_secure_key
 omega_shadow_99_resync_backup
+EOF
