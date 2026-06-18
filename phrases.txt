@@ -1,4 +1,2 @@
-cat << 'EOF' > phrases.txt
 chaos_alpha_2024_secure_key
 omega_shadow_99_resync_backup
-EOF
