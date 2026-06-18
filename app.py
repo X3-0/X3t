@@ -34,7 +34,7 @@ async def tunnel(websocket: WebSocket):
             pad_len = int(abs(x * 100) % 32)
             packet = msg + os.urandom(pad_len)
             await websocket.send_bytes(packet)
-        except:
+        except Exception:
             pass
 
     async def remote_to_ws(reader, stream_id):
@@ -43,14 +43,16 @@ async def tunnel(websocket: WebSocket):
                 data = await reader.read(4096)
                 if not data:
                     break
-                await send_frame(3, stream_id, data) # CMD 3: DATA
-        except:
+                await send_frame(3, stream_id, data)  # CMD 3: DATA
+        except Exception:
             pass
         finally:
-            await send_frame(4, stream_id) # CMD 4: CLOSE
+            await send_frame(4, stream_id)  # CMD 4: CLOSE
             if stream_id in streams:
-                try: streams[stream_id].close()
-                except: pass
+                try:
+                    streams[stream_id].close()
+                except Exception:
+                    pass
                 del streams[stream_id]
 
     try:
@@ -58,43 +60,48 @@ async def tunnel(websocket: WebSocket):
             packet = await websocket.receive_bytes()
             if len(packet) < 5:
                 continue
-            
+
             cmd, stream_id, payload_len = struct.unpack("!BHH", packet[:5])
             payload = packet[5:5+payload_len]
 
-            if cmd == 1: # CMD 1: CONNECT (Клиент просит соединить с целевым сайтом)
-                if len(payload) < 3: continue
+            if cmd == 1:  # CMD 1: CONNECT (Клиент просит соединить с целевым сайтом)
+                if len(payload) < 3:
+                    continue
                 port = struct.unpack("!H", payload[:2])[0]
                 host = payload[2:].decode('utf-8', errors='ignore')
                 try:
                     reader, writer = await asyncio.open_connection(host, port)
                     streams[stream_id] = writer
-                    await send_frame(2, stream_id, b"\x00") # Статус 0: Успех
+                    await send_frame(2, stream_id, b"\x00")  # Статус 0: Успех
                     asyncio.create_task(remote_to_ws(reader, stream_id))
-                except:
-                    await send_frame(2, stream_id, b"\x01") # Статус 1: Провал подключения
-            
-            elif cmd == 3: # CMD 3: DATA (Данные от клиента летят в целевой сайт)
+                except Exception:
+                    await send_frame(2, stream_id, b"\x01")  # Статус 1: Провал подключения
+
+            elif cmd == 3:  # CMD 3: DATA (Данные от клиента летят в целевой сайт)
                 if stream_id in streams:
                     try:
                         streams[stream_id].write(payload)
                         await streams[stream_id].drain()
-                    except:
+                    except Exception:
                         pass
-            
-            elif cmd == 4: # CMD 4: CLOSE (Клиент закрыл вкладку)
+
+            elif cmd == 4:  # CMD 4: CLOSE (Клиент закрыл вкладку)
                 if stream_id in streams:
-                    try: streams[stream_id].close()
-                    except: pass
+                    try:
+                        streams[stream_id].close()
+                    except Exception:
+                        pass
                     del streams[stream_id]
 
     except WebSocketDisconnect:
         pass
     finally:
         for writer in list(streams.values()):
-            try: writer.close()
-            except: pass
+            try:
+                writer.close()
+            except Exception:
+                pass
 
-if name == "main":
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port) 
+    uvicorn.run(app, host="0.0.0.0", port=port)
